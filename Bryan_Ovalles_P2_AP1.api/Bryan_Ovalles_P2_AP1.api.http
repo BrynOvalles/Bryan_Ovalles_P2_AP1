@@ -1,0 +1,6 @@
+@Bryan_Ovalles_P2_AP1.api_HostAddress = http://localhost:5149
+
+GET {{Bryan_Ovalles_P2_AP1.api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
