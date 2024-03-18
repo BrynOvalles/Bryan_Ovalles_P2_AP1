@@ -1,0 +1,60 @@
+﻿@page "/Delete"
+@page "/Delete/Id={PersonaId:int}"
+
+@inject HttpClient httpClient
+@inject NavigationManager NavigationManager;
+
+<h3>Delete</h3>
+
+@code {
+	[Parameter]
+	public int PersonaId { get; set; }
+	public Personas persona { get; set; } = new Personas();
+	public string Mensaje { get; set; } = string.Empty;
+	public List<TiposTelefonos	> listaTipos= new List<TiposTelefonos>();
+	public List<PersonasDetalles> listaDetalles = new List<PersonasDetalles>();
+
+
+	protected override async Task OnInitializedAsync()
+	{
+		persona.PersonaId= PersonaId;
+		listaTipos = (await httpClient.GetFromJsonAsync<List<TiposTelefonos>>("api/TiposTelefonos"))!;
+
+		listaDetalles = (await httpClient
+						.GetFromJsonAsync<List<PersonasDetalles>>("api/PersonasDetalles"))!
+						.Where(p => p.PersonaId== persona.PersonaId)
+						.ToList();
+		await Buscar();
+	}
+
+	public async Task Buscar()
+	{
+		var personaBuscada = await httpClient.GetFromJsonAsync<Personas>("api/Personas/" + PersonaId);
+		if (personaBuscada != null)
+		{
+			persona = personaBuscada;
+		}
+		else
+			Mensaje = "No se ha encontrado a la Persona.";
+	}
+
+	public async Task Eliminar()
+	{
+		var eliminado = await httpClient.DeleteAsync($"api/Personas/{persona.PersonaId}");
+		if (eliminado.IsSuccessStatusCode)
+			VolverAtras();
+		else
+			Mensaje = "No se podido eliminar a la Persona.";
+	}
+
+	void VolverAtras()
+	{
+		NavigationManager.NavigateTo("/Persona");
+	}
+
+	public string BuscarTipo(int id)
+	{
+		var buscado = listaTipos.FirstOrDefault(n => n.TipoId == id);
+		return buscado!.Descripcion;
+	}
+}
