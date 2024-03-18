@@ -1,0 +1,92 @@
+﻿@page "/Details"
+@page "/Details/Id={PersonaId:int}"
+
+@inject HttpClient httpClient
+
+<PageTitle>Detalles de Personas</PageTitle>
+<div class="container">
+    <div class="card shadow-lg">
+        <div class="card-header">
+            <h3><b>Informaci&oacute;n de la Persona</b></h3>
+        </div>
+        <div class="card-body">
+            <h4><b>Persona #@personas.PersonaId</b></h4>
+            <div>
+                <p class="mb-2"><b>Persona Id:</b> @personas.PersonaId</p>
+            </div>
+            <div>
+                <p class="mb-2"><b>Nombres:</b> @personas.Nombres</p>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="card shadow-lg">
+        <div class="card-header">
+            <h3><b>Detalles Persona</b></h3>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Descripcion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var detalle in listaDetalles )
+                    {
+                        <tr>
+                            <td>@BuscarDescripcion(detalle.Id)</td>
+                            <td>@detalle.Telefono</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer">
+            <div class="col d-flex justify-content-end"><a href="/Persona" class="btn btn-dark"> Volver</a></div>
+        </div>
+    </div>
+    @Mensaje
+</div>
+
+@code {
+    [Parameter]
+    public int PersonaId { get; set; }
+    public Personas personas { get; set; } = new Personas();
+    public string Mensaje { get; set; } = string.Empty;
+    public List<PersonasDetalles> listaDetalles = new List<PersonasDetalles>();
+    public List<Personas> listaPersonas = new List<Personas>();
+    public List<TiposTelefonos> listaTipos = new List<TiposTelefonos>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        personas.PersonaId= PersonaId;
+        listaTipos = (await httpClient.GetFromJsonAsync<List<TiposTelefonos>>("api/TiposTelefonos"))!;
+
+        listaDetalles = (await httpClient
+                        .GetFromJsonAsync<List<PersonasDetalles>>("api/PersonasDetalles"))!
+                        .Where(p => p.PersonaId== personas.PersonaId)
+                        .ToList();
+        await Buscar();
+    }
+
+    public async Task Buscar()
+    {
+        var personaEncontrada = await httpClient.GetFromJsonAsync<Personas>("api/Personas/" + PersonaId);
+        if (personaEncontrada != null)
+        {
+            personas = personaEncontrada;
+            listaDetalles = (await httpClient.GetFromJsonAsync<List<PersonasDetalles>>("api/PersonasDetalles"))!.Where(p => p.PersonaId== PersonaId).ToList();
+        }
+        else
+            Mensaje = "No se ha encontrado a la Persona.";
+    }
+
+    public string BuscarDescripcion(int id)
+    {
+        var buscado = listaTipos.FirstOrDefault(n => n.TipoId == id);
+        return buscado!.Descripcion;
+    }
+}
