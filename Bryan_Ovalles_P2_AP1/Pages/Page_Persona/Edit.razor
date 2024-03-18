@@ -1,0 +1,180 @@
+﻿@page "/Edit"
+@page "/Edit/Id={PersonaId:int}"
+
+@inject HttpClient httpClient
+@inject NavigationManager NavigationManager;
+
+<PageTitle>Editar Persona</PageTitle>
+<EditForm Model="personas" OnValidSubmit="Modificar" FormName="modificarPersona">
+	<DataAnnotationsValidator />
+	<div class="container">
+		<div class="card shadow-lg">
+			<div class="card-header">
+				<h3><b>Editar Persona</b></h3>
+			</div>
+			<div class="card-body">
+				<label>Persona Id:</label>
+				<div class="col-6">
+					<InputNumber @bind-Value="personas.PersonaId" class="id-input"></InputNumber>
+					<div class="row">
+						<div class="col-4">
+							<label>Nombre:</label>
+							<InputText @bind-Value="personas.Nombres" class="form-control input-group-sm" placeholder="Nombres:"></InputText>
+							<ValidationMessage For="@(() => personas.Nombres)" />
+						</div>
+					</div>
+					<div class="card-footer d-flex justify-content-center">
+						<button type="submit" class="btn btn-outline-success"><i class="bi bi-floppy-fill" /> Modificar</button>
+						<div class="col d-flex justify-content-end"><a href="/Persona" class="btn btn-dark"> Volver</a></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="container">
+		<div class="card shadow-lg">
+			<div class="card-header">
+				<h3><b>Detalles Persona</b></h3>
+			</div>
+			<div class="card-body">
+				<div class="row">
+					<div class="col-3">
+						<label>Tipos:</label>
+						<InputSelect class="form-select" @bind-Value="Detalle.TipoId">
+							<option disabled selected>Seleccione una opción</option>
+							@foreach (var tipos in listaTipos)
+							{
+								<option value="@tipos.TipoId">@tipos.Descripcion</option>
+							}
+						</InputSelect>
+						<ValidationMessage For="@(() => Detalle.TipoId)" />
+					</div>
+					<div class="col-4">
+						<label>N&uacute;mero</label>
+						<InputText @bind-Value="Detalle.Telefono" class="form-control"></InputText>
+						<ValidationMessage For="@(() => Detalle.Telefono)" />
+					</div>
+					<div class="col-3">
+						<button type="button" @onclick="Agregar" class="btn btn-success">Agregar</button>
+					</div>
+				</div>
+			</div>
+			<table class="table table-bordered">
+				<thead>
+					<tr>
+						<th>Accesorio</th>
+						<th>Valor</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var detalle in listaDetalles)
+					{
+						<tr>
+							<td>@BuscarTipo(detalle.TipoId)</td>
+							<td>@detalle.Telefono</td>
+							<td><button type="button" class="btn btn-info" @onclick=@(() => Editar(detalle))>Editar</button></td>
+							<td><button type="button" class="btn btn-danger" @onclick=@(() => Remover(detalle))>Eliminar</button></td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+		@Mensaje
+	</div>
+</EditForm>
+@code {
+
+	[Parameter]
+	public int personaId { get; set; }
+	public Personas personas { get; set; } = new Personas();
+	public string Mensaje { get; set; } = string.Empty;
+	public List<TiposTelefonos> listaTipos = new List<TiposTelefonos>();
+	public PersonasDetalles Detalle { get; set; } = new PersonasDetalles();
+	public List<PersonasDetalles> listaDetalles = new List<PersonasDetalles>();
+	public List<PersonasDetalles> detallesEliminados = new List<PersonasDetalles>();
+
+	protected override async Task OnInitializedAsync()
+	{
+		personas.PersonaId = personaId;
+		listaTipos = (await httpClient.GetFromJsonAsync<List<TiposTelefonos>>("api/TiposTelefonos"))!;
+
+		listaDetalles = (await httpClient
+						.GetFromJsonAsync<List<PersonasDetalles>>("api/PersonasDetalles"))!
+						.Where(p => p.PersonaId == personas.PersonaId)
+						.ToList();
+		await Buscar();
+	}
+
+	public async Task Buscar()
+	{
+		var personaBuscada = await httpClient.GetFromJsonAsync<Personas>($"api/Personas/{personas.PersonaId}");
+		if (personaBuscada != null)
+			personas = personaBuscada;
+	}
+
+	public async Task Modificar()
+	{
+		var modificado = await httpClient.PutAsJsonAsync($"api/Personas/{personas.PersonaId}", personas);
+		if (modificado.IsSuccessStatusCode)
+		{
+			if (detallesEliminados.Any())
+			{
+				foreach (var detalle in detallesEliminados)
+				{
+					await httpClient.DeleteAsync($"api/PersonasDetalles/{detalle.Id}");
+				}
+			}
+			foreach (var detalle in listaDetalles)
+			{
+				if (detalle.Id == 0)
+				{
+					PersonasDetalles nuevoDetalle = new PersonasDetalles();
+					nuevoDetalle.PersonaId = personaId;
+					nuevoDetalle.TipoId = detalle.TipoId;
+					nuevoDetalle.Telefono = detalle.Telefono;
+
+					await httpClient.PostAsJsonAsync("api/PersonasDetalles", nuevoDetalle);
+				}
+			}
+			VolverAtras();
+		}
+		else
+			Mensaje = "No se pudo modificar la Persona.";
+	}
+
+	void VolverAtras()
+	{
+		NavigationManager.NavigateTo("/Persona");
+	}
+
+	public void Agregar()
+	{
+		if (Detalle.Id > 0)
+		{
+			listaDetalles.Add(Detalle);
+			Detalle = new PersonasDetalles();
+			Mensaje = string.Empty;
+		}
+		else
+			Mensaje = "No pueden haber campos vacíos.";
+	}
+
+	public void Remover(PersonasDetalles detalle)
+	{
+		Detalle = detalle;
+		listaDetalles.Remove(detalle);
+		detallesEliminados.Add(detalle);
+		Detalle = new PersonasDetalles();
+	}
+
+	public void Editar(PersonasDetalles detalle)
+	{
+		Detalle = detalle;
+	}
+
+	public string BuscarTipo(int id)
+	{
+		var buscado = listaTipos.FirstOrDefault(n => n.TipoId == id);
+		return buscado!.Descripcion;
+	}
+}
