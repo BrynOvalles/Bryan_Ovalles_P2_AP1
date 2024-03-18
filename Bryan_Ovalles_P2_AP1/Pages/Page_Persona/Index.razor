@@ -1,0 +1,83 @@
+﻿@page "/Persona"
+@inject HttpClient httpClient
+@inject NavigationManager NavigationManager;
+
+<PageTitle>Persona</PageTitle>
+<div class="container">
+    <div class="card shadow-lg">
+        <div class="card-header">
+            <h3><b>Personas</b></h3>
+            <div class="row">
+                <div class="col-2">
+                    <a href="/Create" class="btn btn-success bi bi-file-earmark-diff-fill"> Crear</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">               
+                @if (listaPersona.Count() == 0)
+                {
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="card-title">No hay Personas para mostrar.</h3>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Persona Id</th>
+                                <th>Nombres</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var persona in listaPersona)
+                            {
+                                <tr>
+                                    <td>@persona.PersonaId</td>
+                                    <td>@persona.Nombres</td>
+                                    <td><button type="button" class="btn btn-outline-secondary" @onclick="(e) => IrDetalle(persona.PersonaId)"><i class="bi bi-eye"></i> Detalles</button></td>
+                                    <td><button type="button" class="btn btn-outline-warning" @onclick="(e) => IrEditar(persona.PersonaId)"><i class="bi bi-pencil-square"></i> Editar</button></td>
+                                    <td><button type="button" class="btn btn-outline-danger" @onclick="(e) => IrEliminar(persona.PersonaId)"><i class="bi bi-trash2-fill"></i> Eliminar</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+            <div class="card-footer">
+                <div class="row">
+                    <div class="col">
+                        <p class="float-start"><b>Total de Personas:</b> @listaPersona.Count</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+    private Personas persona { get; set; } = new Personas();
+    public List<Personas> listaPersona = new List<Personas>();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        listaPersona = (await httpClient.GetFromJsonAsync<List<Personas>>("api/Personas"))!;
+    }
+
+    public void IrEditar(int personaId)
+    {
+        NavigationManager.NavigateTo($"/Edit/Id={personaId}");
+    }
+
+    public void IrEliminar(int personaId)
+    {
+        NavigationManager.NavigateTo($"/Delete/Id={personaId}");
+    }
+
+    public void IrDetalle(int personaId)
+    {
+        NavigationManager.NavigateTo($"Details/Id={personaId}");
+    }
+}
