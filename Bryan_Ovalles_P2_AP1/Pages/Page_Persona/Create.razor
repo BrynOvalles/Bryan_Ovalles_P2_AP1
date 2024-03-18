@@ -1,0 +1,158 @@
+﻿@page "/Create"
+@inject HttpClient httpClient
+
+<PageTitle>Crear Persona</PageTitle>
+<EditForm Model="persona" OnValidSubmit="Crear">
+	<DataAnnotationsValidator />
+	<div class="container">
+		<div class="card shadow-lg">
+			<div class="card-header">
+				<h3><b>Crear Nueva Persona</b></h3>
+			</div>
+			<div class="card-body">
+				<label>Persona Id:</label>
+				<div class="col-6">
+					<InputNumber @bind-Value="persona.PersonaId" class="id-input"></InputNumber>
+				</div>
+				<div class="col-4">
+					<label>Nombres:</label>
+					<InputText @bind-Value="persona.Nombres" class="form-control input-group-sm" placeholder="Nombre:"></InputText>
+					<ValidationMessage For="@(() => persona.Nombres)" />
+				</div>
+			</div>
+			<div class="card-footer d-flex justify-content-center">
+				<button type="submit" class="btn btn-outline-success"><i class="bi bi-floppy-fill" /> Crear</button>
+				<div class="col d-flex justify-content-end"><a href="/Persona" class="btn btn-dark"> Volver</a></div>
+			</div>
+		</div>
+	</div>
+	<div class="container">
+		<div class="card shadow-lg">
+			<div class="card-header">
+				<h3><b>Detalles Persona</b></h3>
+			</div>
+			<div class="card-body">
+				<div class="row">
+					<div class="col-3">
+						<label>Tipo:</label>
+						<InputSelect class="form-select" @bind-Value="Detalle.TipoId">
+							<option disabled selected>Seleccione una opción</option>
+							@foreach (var tipo in listaTipos)
+							{
+								<option value="@tipo.TipoId">@tipo.Descripcion</option>
+							}
+						</InputSelect>
+						<ValidationMessage For="@(() => Detalle.TipoId)" />
+					</div>
+					<div class="col-2">
+						<label>Número</label>
+						<InputText @bind-Value="Detalle.Telefono" class="form-control"></InputText>
+						<ValidationMessage For="@(() => Detalle.Telefono)" />
+					</div>
+					<div class="col-3">
+						<button type="button" @onclick="Agregar" class="btn btn-success">Agregar</button>
+					</div>
+				</div>
+			</div>
+			<table class="table table-bordered">
+				<thead>
+					<tr>
+						<th>Tipo</th>
+						<th>N&uacute;mero</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var detalle in listaDetalles)
+					{
+						<tr>
+							<td>@BuscarTipo(detalle.TipoId)</td>
+							<td>@detalle.Telefono</td>
+							<td><button type="button" class="btn btn-danger" @onclick=@(() => Remover(detalle))>Eliminar</button></td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+		@Mensaje
+	</div>
+</EditForm>
+
+@code {
+	public Personas persona { get; set; } = new Personas();
+	public string Mensaje { get; set; } = string.Empty;
+	public PersonasDetalles Detalle { get; set; } = new PersonasDetalles();
+	public List<PersonasDetalles> listaDetalles = new List<PersonasDetalles>();
+	public List<TiposTelefonos> listaTipos = new List<TiposTelefonos>();
+
+	protected override async Task OnInitializedAsync()
+	{
+		listaTipos = (await httpClient.GetFromJsonAsync<List<TiposTelefonos>>("api/TiposTelefonos"))!;
+
+	}
+
+	public async Task Crear()
+	{
+		var personaCreada = await httpClient.PostAsJsonAsync("api/Personas", persona);
+
+		if (personaCreada.IsSuccessStatusCode)
+		{
+			var personaGuardada = await personaCreada.Content.ReadFromJsonAsync<Personas>();
+
+			foreach (var detalle in listaDetalles)
+			{
+				PersonasDetalles nuevoDetalle = new PersonasDetalles();
+				nuevoDetalle.PersonaId = personaGuardada!.PersonaId;
+				nuevoDetalle.TipoId = detalle.TipoId;
+				nuevoDetalle.Telefono = detalle.Telefono;
+
+				await httpClient.PostAsJsonAsync("api/PersonasDetalles", nuevoDetalle);
+			}
+
+			Nuevo();
+			Mensaje = "Se guardó correctamente el Teléfono.";
+		}
+		else
+		{
+			Nuevo();
+			Mensaje = "No se pudo guardar el Teléfono.";
+		}
+	}
+
+	public void Nuevo()
+	{
+		persona = new Personas();
+		Mensaje = string.Empty;
+		Detalle = new PersonasDetalles();
+		listaDetalles = new List<PersonasDetalles>();
+	}
+
+	public void Agregar()
+	{
+		if (Detalle.Id > 0)
+		{
+			listaDetalles.Add(Detalle);
+			Detalle = new PersonasDetalles();
+			Mensaje = string.Empty;
+		}
+		else
+			Mensaje = "No pueden haber campos vacíos.";
+	}
+
+	public void Remover(PersonasDetalles detalle)
+	{
+		Detalle = detalle;
+		listaDetalles.Remove(detalle);
+		Detalle = new PersonasDetalles();
+	}
+
+	public void Editar(PersonasDetalles detalle)
+	{
+		Detalle = detalle;
+	}
+
+	public string BuscarTipo(int id)
+	{
+		var buscado = listaTipos.FirstOrDefault(n => n.TipoId == id);
+		return buscado!.Descripcion;
+	}
+}
